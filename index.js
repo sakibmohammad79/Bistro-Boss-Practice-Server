@@ -1,7 +1,8 @@
 const express = require('express');
 const app = express();
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const cors = require('cors');
+var jwt = require('jsonwebtoken');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
 
@@ -27,23 +28,85 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
+    const usersCollection = client.db("bistroBossDb").collection("users");
     const menuCollection = client.db("bistroBossDb").collection("menu");
     const reviewCollection = client.db("bistroBossDb").collection("reviews");
     const cartCollection = client.db("bistroBossDb").collection("carts");
+
+    //user related api
+    app.post('/users', async (req, res) => {
+      const users = req.body;
+      const query = { email: users.email }
+      const existingUser = await usersCollection.findOne(query);
+      if(existingUser){
+       return res.send({message: "user already exists"})
+      }
+      const result = await usersCollection.insertOne(users);
+      res.send(result);
+    })
+
+    //user get
+    app.get('/users', async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    })
+
+    //make admin
+    app.patch('/users/admin/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id)}
+      const updateDoc = {
+        $set: {
+          role: "admin"
+        },
+      };
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    })
+
+    //users delete
+    app.delete('/users/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id : new ObjectId(id)}
+      const result = await usersCollection.deleteOne(query);
+      res.send(result);
+    })
+
     //menu
     app.get('/menu', async (req, res) => {
         const result = await menuCollection.find().toArray();
         res.send(result);
     })
+
     //review
     app.get('/reviews', async (req, res) => {
         const result = await reviewCollection.find().toArray();
         res.send(result);
     })
+
     //add to cart
     app.post('/carts', async (req, res) => {
       const item = req.body;
       const result = await cartCollection.insertOne(item);
+      res.send(result);
+    })
+    
+    //cart data get
+    app.get('/carts', async (req, res) => {
+      const email = req.query.email;
+      if(!email){
+        res.send([]);
+      }
+      const query = { email: email}
+      const result = await cartCollection.find(query).toArray();
+      res.send(result);
+    })
+
+    //cart delete
+    app.delete('/carts/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id : new ObjectId(id)}
+      const result = await cartCollection.deleteOne(query);
       res.send(result);
     })
 
@@ -57,7 +120,6 @@ async function run() {
   }
 }
 run().catch(console.dir);
-
 
 app.get('/', (req, res)=> {
     res.send("bistro boss are running");
