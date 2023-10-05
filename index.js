@@ -141,6 +141,20 @@ async function run() {
       res.send(result);
     });
 
+    //add menu item
+    app.post('/menu', verifyJwt, verifyAdmin, async (req, res) => {
+      const newItem = req.body;
+      const result = await menuCollection.insertOne(newItem);
+      res.send(result);
+    })
+    //menu.deleted
+    app.delete('/menu/:id', verifyJwt, verifyAdmin, async(req,res) => {
+      const id = req.params.id;
+      const query = { _id : new ObjectId(id) };
+      const result = await menuCollection.deleteOne(query);
+      res.send(result);
+    })
+
     //review
     app.get("/reviews", async (req, res) => {
       const result = await reviewCollection.find().toArray();
