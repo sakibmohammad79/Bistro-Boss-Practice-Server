@@ -220,7 +220,56 @@ async function run() {
       const deletedResult = await cartCollection.deleteMany(query);
       
       res.send({insertedResult, deletedResult});
-      
+    })
+
+    //admin home data api
+    app.get('/admin-state', async (req, res) => {
+      const user = await usersCollection.estimatedDocumentCount();
+      const product = await menuCollection.estimatedDocumentCount();
+      const order = await paymentCollection.estimatedDocumentCount();
+      const payments = await paymentCollection.find().toArray();
+      const revenue = payments.reduce((sum, currentValue) => sum + currentValue.price, 0)
+
+      res.send({
+        user,
+        product,
+        order,
+        revenue
+      })
+    })
+
+    //order graph api
+    app.get('/order-stats', async (req, res) => {
+      const pipeline = [
+        {
+          $lookup: {
+            from: 'menu',
+            localField: 'menuItems',
+            foreignField: '_id',
+            as: 'menuItemsData'
+          }
+        },
+        {
+          $unwind: '$menuItemsData'
+        },
+        {
+          $group: {
+            _id: '$menuItemsData.category',
+            count: { $sum: 1 },
+            total: { $sum: '$menuItemsData.price'}
+          }
+        },
+        {
+          $project: {
+            category: '$_id',
+            count: 1,
+            total: {$round: ['$total', 2]},
+            _id: 0
+          }
+        }
+      ];
+      const result = await paymentCollection.aggregate(pipeline).toArray();
+      res.send(result)
     })
 
     // Send a ping to confirm a successful connection
