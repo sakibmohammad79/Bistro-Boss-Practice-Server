@@ -3,6 +3,8 @@ const app = express();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const cors = require("cors");
 var jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
+const mg = require('nodemailer-mailgun-transport');
 require("dotenv").config();
 const stripe = require('stripe')(process.env.PAYMENT_SECRET_KAY)
 const port = process.env.PORT || 5000;
@@ -10,6 +12,45 @@ const port = process.env.PORT || 5000;
 //middleware
 app.use(cors());
 app.use(express.json());
+
+// let transporter = nodemailer.createTransport({
+//   host: 'smtp.sendgrid.net',
+//   port: 587,
+//   auth: {
+//       user: "apikey",
+//       pass: process.env.SENDGRID_API_KEY
+//   }
+// })
+const auth = {
+  auth: {
+    api_key: process.env.EMAIL_PRIVATE_KEY,
+    domain: process.env.EMAIL_DOMAIN
+  }
+}
+const nodemailerMailgun = nodemailer.createTransport(mg(auth));
+
+const sendPaymentComfermationEmail = (payment) => {
+  nodemailerMailgun.sendMail({
+    from: "mohammadsakib7679@gmail.com", // verified sender email
+    to:  "mohammadsakib7679@gmail.com", // recipient email
+    subject: "Your Order confirmed. Enjoy the food Soon!", // Subject line
+    text: "Hello world!", // plain text body
+    html: `
+    <div>
+      <h2>your order confirmed!</h2>
+      <p>Your Product Prce: ${payment.transactionId}</p>
+      <p>Your Product Prce: ${payment.price}</p>
+    </div>`, // html body
+  }, function(error, info){
+    if (error) {
+      console.log(error);
+    } else {
+      console.log('Email sent: ' + info.response);
+    }
+  });
+ 
+}
+
 
 const verifyJwt = (req, res, next) => {
   const authorization = req.headers.authorization;
@@ -218,6 +259,9 @@ async function run() {
       
       const query = {_id: { $in: payment.cartItems.map(id => new ObjectId(id))}}
       const deletedResult = await cartCollection.deleteMany(query);
+
+      //send email
+      sendPaymentComfermationEmail(payment);
       
       res.send({insertedResult, deletedResult});
     })
