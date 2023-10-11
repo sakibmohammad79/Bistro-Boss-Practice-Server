@@ -223,7 +223,7 @@ async function run() {
     })
 
     //admin home data api
-    app.get('/admin-state', async (req, res) => {
+    app.get('/admin-state', verifyJwt, verifyAdmin, async (req, res) => {
       const user = await usersCollection.estimatedDocumentCount();
       const product = await menuCollection.estimatedDocumentCount();
       const order = await paymentCollection.estimatedDocumentCount();
@@ -239,7 +239,7 @@ async function run() {
     })
 
     //order graph api
-    app.get('/order-stats', async (req, res) => {
+    app.get('/order-stats', verifyJwt, verifyAdmin, async (req, res) => {
       const pipeline = [
         {
           $lookup: {
